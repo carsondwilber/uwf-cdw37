@@ -1,3 +1,10 @@
+/*
+ * File: settcptimeout.c
+ * Created: 21 February 2019
+ * Creators: Carson Wilber & Hunter Werenskjold
+ * Purpose: Provides implementation for setting the timeout time of a TCP connection.
+ */
+
 #include <sys/time.h>
 #include <sys/socket.h>
 

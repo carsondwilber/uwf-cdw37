@@ -1,3 +1,10 @@
+/*
+ * File: logging.c
+ * Created: 17 February 2019
+ * Creators: Carson Wilber & Hunter Werenskjold
+ * Purpose: Provides implementation for a logging utility, including colorized messages.
+ */
+
 #include <stdio.h>
 #include <time.h>
 

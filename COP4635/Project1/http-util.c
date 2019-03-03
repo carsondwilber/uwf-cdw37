@@ -1,3 +1,10 @@
+/*
+ * File: http-util.c
+ * Created: 21 February 2019
+ * Creators: Carson Wilber & Hunter Werenskjold
+ * Purpose: Provides implementation for validating field values and generating valid requests/responses.
+ */
+
 #include <stdlib.h>
 #include <string.h>
 
@@ -30,6 +37,7 @@ bool validateInteger(const char *ptr)
 	
 	while (c < len)
 	{
+		// Validate that each character is a digit.
 		if (!(ptr[c] >= '0' && ptr[c] <= '9'))
 		{
 			return false;
@@ -47,6 +55,8 @@ bool validateWeight(const char *ptr)
 	
 	if (ptr[0] == '1')
 	{
+		// Format: 1
+		
 		if (ptr[1] != '\0')
 		{
 			return false;
@@ -56,6 +66,8 @@ bool validateWeight(const char *ptr)
 	}
 	else if (ptr[0] == '0')
 	{
+		// Format: 0.#...
+
 		if (ptr[1] != '.')
 		{
 			return false;
@@ -65,12 +77,18 @@ bool validateWeight(const char *ptr)
 	}
 	else if (ptr[0] != '.')
 	{
+		// Invalid format!
+		
 		return false;
 	}
 	else // ptr[0] == '.'
 	{
+		// Format: .#...
+
 		c = 1;
 	}
+	
+	// If a decimal, validate the mantissa.
 	
 	return validateInteger(ptr + c);
 }
@@ -92,10 +110,14 @@ bool validateLanguageCode(const char *code)
 
 	int len = strlen(ptr);
 	
+	// Valid language codes are only 2 or 3 letters.
+	
 	if (len < 2 || len > 3)
 	{
 		return false;
 	}
+	
+	// Search the language code list linearly until the language code is found or we reach the end of the list.
 	
 	unsigned int i = 0;
 	
@@ -103,6 +125,8 @@ bool validateLanguageCode(const char *code)
 	{
 		i++;
 	}
+	
+	// Language code is valid if we have not reached the end of the list.
 	
 	return i < sizeof(language_codes);
 }

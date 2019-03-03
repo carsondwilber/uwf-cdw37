@@ -1,3 +1,11 @@
+/*
+ * File: http-server.c
+ * Created: 14 February 2019
+ * Creators: Carson Wilber & Hunter Werenskjold
+ * 	* Based on original source code provided by Dr. Amitabh Mishra
+ * Purpose: The HTTP Server application.
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/socket.h>
@@ -7,102 +15,118 @@
 #include <errno.h>
 #include <sys/stat.h>
 #include <string.h>
+#include <arpa/inet.h>
+#include <limits.h>
+#include <stdbool.h>
 
 #include "util.h"
 #include "http.h"
 #include "http-parse.h"
 #include "http-craft.h"
 #include "logging.h"
+#include "filetypes.h"
+#include "fileio.h"
+#include "http-util.h"
 
-int readFileIntoBuffer(char *filePath, char **fileData)
+void sendAndConsume(int tcp_client_socket, char *data, int bytes)
 {
-	FILE *fp = fopen(filePath, "r");
+	log_msg(INFO, "Sending response:");
 	
-	if (fp != NULL)
-	{
-		/* Go to the end of the file. */
-		if (fseek(fp, 0L, SEEK_END) == 0)
-		{
-			/* Get the size of the file. */
-			long bufsize = ftell(fp);
-
-			if (bufsize == -1)
-			{
-				log_msg(ERROR, "Error reading file!");
-				
-				fclose(fp);
-				
-				return -1;
-			}
-
-			/* Allocate our buffer to that size. */
-			*fileData = malloc(sizeof(char) * (bufsize + 1));
-
-			/* Go back to the start of the file. */
-			if (fseek(fp, 0L, SEEK_SET) != 0)
-			{
-				log_msg(ERROR, "Error reading file!");
-				
-				free(*fileData);
-				
-				fclose(fp);
-				
-				return -1;
-			}
-
-			/* Read the entire file into memory. */
-			size_t newLen = fread(*fileData, sizeof(char), bufsize, fp);
-			
-			if (ferror(fp) != 0)
-			{
-				log_msg(ERROR, "Error reading file!");
-				
-				free(*fileData);
-				
-				fclose(fp);
-				
-				return -1;
-			}
-			else
-			{
-				(*fileData)[newLen++] = '\0'; /* Just to be safe. */
-			}
-			
-			return newLen;
-		}
-		
-		log_msg(ERROR, "Error reading file!");
-		
-		fclose(fp);
-		
-		return -1;
-	}
+	printf("\n%s\n\n", data);
 	
-	log_msg(ERROR, "Error opening file!");
+	send(tcp_client_socket, data, bytes, 0);
 	
-	fclose(fp);
-	
-	return -1;
+	free(data);
 }
 
-void handleRequests(int tcp_client_socket)
+char * FQAddress(char *address, int port)
+{
+	char *buffer = (char *)calloc(strlen(address) + 7, sizeof(char));
+	
+	snprintf(buffer, strlen(address) + 6, "%s:%d", address, port);
+	
+	return buffer;
+}
+
+void getAddress(int tcp_client_socket, char **ipstr, int *port)
+{
+	socklen_t len;
+	struct sockaddr_storage addr;
+	*ipstr = (char *)calloc(INET6_ADDRSTRLEN, sizeof(char));
+	
+	len = sizeof(addr);
+	getpeername(tcp_client_socket, (struct sockaddr*)&addr, &len);
+
+	if (addr.ss_family == AF_INET)
+	{
+		struct sockaddr_in *s = (struct sockaddr_in *)&addr;
+		*port = ntohs(s->sin_port);
+		inet_ntop(AF_INET, &s->sin_addr, *ipstr, sizeof(*ipstr));
+	}
+	else
+	{ // AF_INET6
+		struct sockaddr_in6 *s = (struct sockaddr_in6 *)&addr;
+		*port = ntohs(s->sin6_port);
+		inet_ntop(AF_INET6, &s->sin6_addr, *ipstr, sizeof(*ipstr));
+	}
+}
+
+char path[PATH_MAX];
+
+char * join(char *path1, char *path2)
+{
+	int len = strlen(path1) + strlen(path2) + 1;
+	
+	snprintf(path, len + 1, "%s/%s", path1, path2);
+	
+	path[len] = '\0';
+	
+	return path;
+}
+
+void handleRequests(int tcp_server_socket, int tcp_client_socket)
 {
 	settcptimeout(tcp_client_socket, 30);
 	
 	char *tcp_client_message = (char *)malloc(sizeof(char) * 512);
 	
+	char serverPath[PATH_MAX];
+	getcwd(serverPath, sizeof(serverPath));
+	
 	int recvBytes;
+	
+	char *peerAddress;
+	int peerPort;
+	getAddress(tcp_client_socket, &peerAddress, &peerPort);
+	
+	bool disconnect = false;
 	
 	while ((recvBytes = recv(tcp_client_socket, tcp_client_message, 512, 0)) != -1)
 	{
 		if (recvBytes == 0)
 		{
-			log_msg(INFO, "Received a packet with empty content; likely a FIN or ACK. Disconnecting.");
+			if (disconnect)
+			{
+				log_msg(INFO, "Received a packet with empty content after a separate empty packet; likely a final ACK. Disconnecting.");
+				
+				free(tcp_client_message);
+				
+				break;
+			}
+			
+			log_msg(INFO, "Received a packet with empty content; likely a FIN or ACK. Attempting second read.");
+			
+			disconnect = true;
 			
 			free(tcp_client_message);
+			tcp_client_message = (char *)malloc(sizeof(char) * 512);
 			
-			break;
+			continue;
 		}
+		
+		disconnect = false;
+		
+		tcp_client_message[recvBytes] = '\0';
 		
 		log_msg(INFO, "Received the following raw request:");
 		
@@ -114,20 +138,42 @@ void handleRequests(int tcp_client_socket)
 		
 		if (requestHeaderParseResult != VALID_HEADER)
 		{
-			log_msg(ERROR, "Request is not well formed: returning 400 Bad Request.");
-			
-			char responseBuffer[128];
-			
-			int bytes = craftHTTPResponseHeader(DEFAULT_VERSION, HTTP_ERROR_400_BAD_REQUEST, responseBuffer, 128);
-			
-			bytes += craftHTTPField("Host", "localhost", responseBuffer + bytes, 128 - bytes);
-			
-			bytes += craftHTTPField("Connection", "Keep-Alive", responseBuffer + bytes, 128 - bytes);
-			
-			send(tcp_client_socket, responseBuffer, strlen(responseBuffer), 0);
+			if (requestHeaderParseResult == UNKNOWN_METHOD)
+			{
+				log_msg(ERROR, "Request uses an unsupported or unknown method! Returning 501 Not Implemented.");
+				
+				char *errorResponse = craftStandardErrorResponse(HTTP_ERROR_501_NOT_IMPLEMENTED);
+				
+				if (!errorResponse)
+				{
+					log_msg(ERROR, "Fatal error! Closing connection immediately and exiting.");
+					
+					close(tcp_client_socket);
+					
+					break;
+				}
+				
+				sendAndConsume(tcp_client_socket, errorResponse, strlen(errorResponse));
+			}
+			else
+			{
+				log_msg(ERROR, "Request is not well formed: returning 400 Bad Request.");
+				
+				char *errorResponse = craftStandardErrorResponse(HTTP_ERROR_400_BAD_REQUEST);
+				
+				if (!errorResponse)
+				{
+					log_msg(ERROR, "Fatal error! Closing connection immediately and exiting.");
+					
+					close(tcp_client_socket);
+					
+					break;
+				}
+				
+				sendAndConsume(tcp_client_socket, errorResponse, strlen(errorResponse));
+			}
 			
 			free(tcp_client_message);
-			
 			tcp_client_message = (char *)malloc(sizeof(char) * 512);
 			
 			continue;
@@ -136,22 +182,24 @@ void handleRequests(int tcp_client_socket)
 		{
 			struct stat s;
 			
-			if (stat(resource, &s) != 0)
+			if (stat(join(serverPath, resource), &s) != 0)
 			{
 				log_msg(ERROR, "Resource requested not found: returning 404 Not Found.");
 				
-				char responseBuffer[128];
+				char * errorResponse = craftStandardErrorResponse(HTTP_ERROR_404_NOT_FOUND);
 				
-				int bytes = craftHTTPResponseHeader(DEFAULT_VERSION, HTTP_ERROR_404_NOT_FOUND, responseBuffer, 128);
+				if (!errorResponse)
+				{
+					log_msg(ERROR, "Fatal error! Closing connection immediately and exiting.");
+					
+					close(tcp_client_socket);
+					
+					break;
+				}
 				
-				bytes += craftHTTPField("Host", "localhost", responseBuffer + bytes, 128 - bytes);
-				
-				bytes += craftHTTPField("Connection", "Keep-Alive", responseBuffer + bytes, 128 - bytes);
-				
-				send(tcp_client_socket, responseBuffer, strlen(responseBuffer), 0);
+				sendAndConsume(tcp_client_socket, errorResponse, strlen(errorResponse));
 				
 				free(tcp_client_message);
-				
 				tcp_client_message = (char *)malloc(sizeof(char) * 512);
 				
 				continue;
@@ -160,59 +208,267 @@ void handleRequests(int tcp_client_socket)
 		
 		char *fileData;
 		
-		int readSize = readFileIntoBuffer(resource, &fileData);
+		int readSize = readFileIntoBuffer(join(serverPath, resource), &fileData);
 		
 		if (readSize == -1)
 		{
 			log_msg(ERROR, "Failed to read file: returning 500 Internal Server Error.");
 			
-			char responseBuffer[128];
+			char * errorResponse = craftStandardErrorResponse(HTTP_ERROR_500_INTERNAL_SERVER_ERROR);
 			
-			int bytes = craftHTTPResponseHeader(DEFAULT_VERSION, HTTP_ERROR_500_INTERNAL_SERVER_ERROR, responseBuffer, 128);
+			if (!errorResponse)
+			{
+				log_msg(ERROR, "Fatal error! Closing connection immediately and exiting.");
+				
+				close(tcp_client_socket);
+				
+				break;
+			}
 			
-			bytes += craftHTTPField("Host", "localhost", responseBuffer + bytes, 128 - bytes);
-			
-			bytes += craftHTTPField("Connection", "Keep-Alive", responseBuffer + bytes, 128 - bytes);
-			
-			send(tcp_client_socket, responseBuffer, strlen(responseBuffer), 0);
+			sendAndConsume(tcp_client_socket, errorResponse, strlen(errorResponse));
 			
 			free(tcp_client_message);
-			
 			tcp_client_message = (char *)malloc(sizeof(char) * 512);
 			
 			continue;
 		}
 		
-		char headersBuffer[128] = {0};
+		char *fileExtension = getFileExtension(resource);
 		
-		log_msg(INFO, "Serving requested resource.");
+		if (fileExtension == NULL)
+		{
+			log_msg(ERROR, "Request is not well formed: returning 400 Bad Request.");
+			
+			char *errorResponse = craftStandardErrorResponse(HTTP_ERROR_400_BAD_REQUEST);
+			
+			if (!errorResponse)
+			{
+				log_msg(ERROR, "Fatal error! Closing connection immediately and exiting.");
+				
+				close(tcp_client_socket);
+				
+				break;
+			}
+			
+			sendAndConsume(tcp_client_socket, errorResponse, strlen(errorResponse));
+			
+			free(tcp_client_message);
+			tcp_client_message = (char *)malloc(sizeof(char) * 512);
+			
+			continue;
+		}
 		
-		int bytes = craftHTTPResponseHeader(DEFAULT_VERSION, HTTP_SUCCESS_200_OK, headersBuffer, 128);
+		int fileType = getFileType(fileExtension);
 		
-		bytes += craftHTTPField("Host", "localhost", headersBuffer + bytes, 128 - bytes);
+		if (fileType == FILEEXT_UNKNOWN)
+		{
+			log_msg(ERROR, "Request cannot be fulfilled: unsupported file type.");
+			
+			char *errorResponse = craftStandardErrorResponse(HTTP_ERROR_501_NOT_IMPLEMENTED);
+			
+			if (!errorResponse)
+			{
+				log_msg(ERROR, "Fatal error! Closing connection immediately and exiting.");
+				
+				close(tcp_client_socket);
+				
+				break;
+			}
+			
+			sendAndConsume(tcp_client_socket, errorResponse, strlen(errorResponse));
+			
+			free(tcp_client_message);
+			tcp_client_message = (char *)malloc(sizeof(char) * 512);
+			
+			continue;
+		}
 		
-		bytes += craftHTTPField("Connection", "Keep-Alive", headersBuffer + bytes, 128 - bytes);
+		char *mimeType = getMIMEType(fileType);
 		
-		bytes += craftHTTPField("Content-Type", "text/html", headersBuffer + bytes, 128 - bytes);
+		if (mimeType == NULL)
+		{
+			log_msg(ERROR, "Request cannot be fulfilled: file type has no associated MIME type!");
+			
+			char *errorResponse = craftStandardErrorResponse(HTTP_ERROR_500_INTERNAL_SERVER_ERROR);
+			
+			if (!errorResponse)
+			{
+				log_msg(ERROR, "Fatal error! Closing connection immediately and exiting.");
+				
+				close(tcp_client_socket);
+				
+				break;
+			}
+			
+			sendAndConsume(tcp_client_socket, errorResponse, strlen(errorResponse));
+			
+			free(tcp_client_message);
+			tcp_client_message = (char *)malloc(sizeof(char) * 512);
+			
+			continue;
+		}
 		
-		snprintf(headersBuffer + bytes, 128 - bytes, "Content-Length: %d\r\n", readSize);
+		char *ptrLine = strtok(tcp_client_message, "\r\n");
+		
+		if (ptrLine == NULL)
+		{
+			log_msg(WARN, "No header fields provided.");
+		}
+		
+		int error = 0;
+		
+		while ((ptrLine = strtok(NULL, "\r\n")) != NULL)
+		{
+			char *lineCopy = (char *)calloc(strlen(ptrLine), sizeof(char));
+			
+			strncpy(lineCopy, ptrLine, strlen(ptrLine));
+			
+			char *ptrField = strtok(lineCopy, ": ");
+			
+			if (ptrField == NULL)
+			{
+				log_msg(ERROR, "Request is not well formed. Responding with 400 Bad Request.");
+				
+				char *errorResponse = craftStandardErrorResponse(HTTP_ERROR_400_BAD_REQUEST);
+				
+				if (!errorResponse)
+				{
+					log_msg(ERROR, "Fatal error! Closing connection immediately and exiting.");
+					
+					close(tcp_client_socket);
+					
+					break;
+				}
+				
+				sendAndConsume(tcp_client_socket, errorResponse, strlen(errorResponse));
+				
+				free(lineCopy);
+				
+				free(fileData);
+				
+				free(tcp_client_message);
+				tcp_client_message = (char *)malloc(sizeof(char) * 512);
+				
+				continue;
+			}
+			
+			int httpFieldType = parseHTTPFieldName(ptrField);
+			
+			if (httpFieldType == UNKNOWN_FIELD)
+			{
+			}
+			
+			switch (httpFieldType)
+			{
+			case HTTP_FIELD_CONNECTION:
+			{
+				
+			}
+			
+			case HTTP_FIELD_ACCEPT_LANGUAGE:
+			{
+				ptrField = strtok(NULL, "\r\n");
+				
+				char **tokens = NULL;
+				double *weights = NULL;
+				
+				int languageValue = parseHTTPFieldMultipartWeightedValue(HTTP_FIELD_ACCEPT_LANGUAGE, ptrField, &tokens, &weights);
+				
+				// We don't need the tokens or weights, really.
+				
+				free(tokens);
+				free(weights);
+				
+				if (!(languageValue == HTTP_CONTENT_ACCEPT_LANGUAGE_EN || languageValue == HTTP_CONTENT_ACCEPT_LANGUAGE_MULTIPLE))
+				{
+					if (languageValue == HTTP_CONTENT_ACCEPT_LANGUAGE_OTHER)
+					{
+						log_msg(WARN, "Client is not accepting English, though it is the only language served by this server. Ignored.");
+						
+						free(lineCopy);
+						
+						continue;
+					}
+					else
+					{
+						log_msg(ERROR, "Accept-Language values did not parse properly; assuming malformed. Returning 400 Bad Request.");
+						
+						free(lineCopy);
+						
+						error = HTTP_ERROR_400_BAD_REQUEST;
+						
+						break;
+					}
+				}
+				
+				continue;
+			}
+			
+			case HTTP_FIELD_CONTENT_LANGUAGE:
+			case HTTP_FIELD_CONTENT_LENGTH:
+			case HTTP_FIELD_CONTENT_TYPE:
+			{
+				log_msg(WARN, "Content was sent but is not accepted by this server.");
+				
+				free(lineCopy);
+				
+				continue;
+			}
+			
+			case HTTP_FIELD_USER_AGENT:
+			case HTTP_FIELD_HOST:
+			case UNKNOWN_FIELD:
+			default:
+			{
+				log_msg(WARN, "Request field is unknown or ignored.");
+				
+				free(lineCopy);
+				
+				continue;
+			}
+			}
+		}
+		
+		if (error != 0)
+		{
+			char *errorResponse = craftStandardErrorResponse(error);
+			
+			if (!errorResponse)
+			{
+				log_msg(ERROR, "Fatal error! Closing connection immediately and exiting.");
+				
+				close(tcp_client_socket);
+				
+				break;
+			}
+			
+			sendAndConsume(tcp_client_socket, errorResponse, strlen(errorResponse));
+			
+			free(fileData);
+			
+			free(tcp_client_message);
+			tcp_client_message = (char *)malloc(sizeof(char) * 512);
+			
+			continue;
+		}
+		
+		char *headersBuffer = craftStandardResourceResponse(mimeType, readSize);
 		
 		int totalLen = strlen(headersBuffer) + readSize + 2;
 		
-		char *responseBuffer = (char *)malloc(sizeof(char) * (totalLen + 1));
+		char *responseBuffer = (char *)calloc(totalLen + 1, sizeof(char));
 		
-		snprintf(responseBuffer, totalLen, "%s\r\n%s", headersBuffer, fileData);
+		snprintf(responseBuffer, totalLen, "%s\r\n", headersBuffer);
 		
-		responseBuffer[totalLen] = '\0';
-		
-		send(tcp_client_socket, responseBuffer, strlen(responseBuffer), 0);
-		
-		free(responseBuffer);
+		memcpy(responseBuffer + strlen(responseBuffer), fileData, readSize);
 		
 		free(fileData);
 		
-		free(tcp_client_message);
+		responseBuffer[totalLen] = '\0';
 		
+		sendAndConsume(tcp_client_socket, responseBuffer, totalLen + 1);
+		
+		free(tcp_client_message);
 		tcp_client_message = (char *)malloc(sizeof(char) * 512);
 	}
 	
@@ -221,8 +477,29 @@ void handleRequests(int tcp_client_socket)
 	close(tcp_client_socket);
 }
 
-int main()
+int main(int argc, char **argv)
 {
+	int httpPort = 60001;
+	
+	if (argc == 2)
+	{
+		if (!validateInteger(argv[1]))
+		{
+			log_msg(ERROR, "Could not start HTTP server: did not provide a valid integer port number. Please specify a port number between 60001 and 60099, inclusive.");
+			
+			return -1;
+		}
+		
+		httpPort = strtol(argv[1], (char **)NULL, 10);
+		
+		if (httpPort < 60001 || httpPort > 60099)
+		{
+			log_msg(ERROR, "Could not start HTTP server: did not provide a valid integer port number. Please specify a port number between 60001 and 60099, inclusive.");
+			
+			return -1;
+		}
+	}
+	
 	// 1. Create the server socket.
 	
 	log_msg(INFO, "Creating server socket.");
@@ -236,7 +513,7 @@ int main()
 	
 	struct sockaddr_in tcp_server_address;			// Address structure
 	tcp_server_address.sin_family = AF_INET;		// Define address family
-	tcp_server_address.sin_port = htons(39756);		// Define address port
+	tcp_server_address.sin_port = htons(httpPort);		// Define address port
 	tcp_server_address.sin_addr.s_addr = INADDR_ANY;	// Connecting to 0.0.0.0
 	
 	// 2-b. Bind the server IP and port.
@@ -253,7 +530,7 @@ int main()
 	
 	log_msg(INFO, "Listening for client..");
 	
-	listen(tcp_server_socket, 5);
+	listen(tcp_server_socket, 1);
 	
 	// 4. Accept a new connection.
 	
@@ -262,7 +539,7 @@ int main()
 	
 	log_msg(INFO, "Found request: opening connection.");
 
-	handleRequests(tcp_client_socket);
+	handleRequests(tcp_server_socket, tcp_client_socket);
 	
 	log_msg(INFO, "Done accepting connections! Exiting now.");
 	

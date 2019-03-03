@@ -1,3 +1,10 @@
+/*
+ * File: http.h
+ * Created: 14 February 2019
+ * Creators: Carson Wilber & Hunter Werenskjold
+ * Purpose: Provides preprocessor definitions for HTTP error codes and messages, as well as some parser values.
+ */
+
 #ifndef HTTP_H
 #define HTTP_H
 
