@@ -1,0 +1,10 @@
+mixin cartLink(cart, id)
+  // If cart is defined, find the index if the item in the cart
+  - let itemIndex = cart ? cart.findIndex( i => i.id === id ) : -1;
+
+  // If the item index was found, show that it's in the cart,
+  // Otherwise render the add button
+  if itemIndex > -1
+    p Already in cart (item #{itemIndex})
+  else
+    a(href='/cart/add/' + id) Add

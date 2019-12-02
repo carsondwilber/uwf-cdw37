@@ -1,0 +1,19 @@
+.item-thumbnail {max-width: 200px;}
+
+/* The alert message box */
+/* From: http://www.w3schools.com/howto/howto_js_alert.asp */
+.alert {
+    padding: 20px;
+    background-color: #f44336; /* Red */
+    color: white;
+    margin-bottom: 15px;
+}
+
+#cart { font-size: 18px;}
+#cart .button { margin: 0 10px; }
+
+.flash { text-align: center; padding: 0.5em; color: white; }
+
+#saleList { width: 100%; text-align: center; }
+.sale { display: inline-block; width: 50%; color: white; text-align: left; border: 1px solid white; border-radius: 5px; }
+.sale .item { width: 20%; border: 1px solid gray; }

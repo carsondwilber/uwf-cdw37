@@ -1,0 +1,39 @@
+{
+  "name": "problem-5",
+  "version": "1.0.0",
+  "description": "Homework set for server side programming course at UWF.",
+  "main": "index.js",
+  "scripts": {
+    "test": "jest"
+  },
+  "devDependencies": {
+    "supertest": "^4.0.2"
+  },
+  "author": "E.L. Fridge",
+  "license": "ISC",
+  "eslintConfig": {
+    "parserOptions": {
+      "ecmaVersion": 6
+    },
+    "env": {
+      "node": true
+    },
+    "extends": "eslint:recommended",
+    "rules": {
+      "no-console": "off",
+      "semi": [
+        "error",
+        "always",
+        {
+          "omitLastInOneLineBlock": true
+        }
+      ],
+      "camelcase": [
+        "error"
+      ]
+    }
+  },
+  "dependencies": {
+    "express": "^4.17.1"
+  }
+}

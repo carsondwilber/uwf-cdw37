@@ -1,0 +1,80 @@
+doctype html
+head
+  meta(http-equiv='Content-Type' content='text/html; charset=utf-8')
+  title Kids Closet - Everything you need for your kids
+  meta(name='keywords' content='')
+  meta(name='description' content='')
+  link(href='http://fonts.googleapis.com/css?family=Arvo:400,700|Cookie' rel='stylesheet' type='text/css')
+  link(href='/default.css' rel='stylesheet' type='text/css' media='all')
+  link(href='/app.css' rel='stylesheet' type='text/css' media='all')
+  script(type='text/javascript' src='/js/jquery-1.7.1.min.js')
+  script(type='text/javascript' src='/js/jquery.dropotron-1.0.js')
+  script(type='text/javascript' src='/js/init.js')
+#header-wrapper
+  #header.container
+    #logo
+      h1
+        a(href='#') Kids Closet
+    #menu-wrapper
+      div
+        ul#menu
+          li
+            a(href='/' accesskey='1' title='')
+              span Home
+          li
+            a(href='/category/clothing' accesskey='2' title='')
+              span Clothing
+          li
+            a(href='/category/toys' accesskey='3' title='')
+              span Toys
+          li
+            a(href='/category/babygear' accesskey='4' title='')
+              span Baby Gear
+          li
+            a(href='/category/furniture' accesskey='5' title='')
+              span Furniture
+        #cart
+          span#cart-amount Shopping cart: #{cartItemCount} items
+          a.button(href='/cart/view') View
+#banner-wrapper
+  #banner.container
+    .image
+      a(href='#')
+        img(src='/images/kids/hero4.jpg' width='960' height='278' alt='')
+    .caption1
+      h2 Kids stuff with previous experience
+    .border
+if flash != null
+    p.flash= flash.message
+block content
+#footer-content
+  #footer-content-bg
+    #three-columns
+      #column1.box-style1
+        .bgtop
+        .content-bg
+          h2 Just another widget
+          p
+            | Mauris consectetur
+            | magna tempus enim sagittis et bibendum lacus et imperdiet. Maecenas semper et massa amet et odio mauris dui, id luctus amet ligula.
+        .bgbtm
+      #column2.box-style1
+        .bgtop
+        .content-bg
+          h2 Just another widget
+          p
+            | Mauris consectetur magna tempus enim sagittis et bibendum lacus et imperdiet. Maecenas semper et massa amet et odio mauris dui, id luctus amet ligula.
+        .bgbtm
+      #column3.box-style1
+        .bgtop
+        .content-bg
+          h2 Just another widget
+          p
+            | Mauris consectetur magna tempus enim sagittis et bibendum lacus et imperdiet. Maecenas semper et massa amet et odio mauris dui, id luctus amet ligula.
+        .bgbtm
+#footer
+  p
+    | &copy; Your Website Name  |  Elysa4T by 
+    a(href='http://www.4templates.com/free/') 4Templates
+    |  |  Photos by 
+    a(href='http://fotogrph.com/') Fotogrph

@@ -1,0 +1,14 @@
+{
+  "name": "lab-1",
+  "version": "1.0.0",
+  "description": "COP3813 Lab 1 assignment for cdw37.",
+  "main": "index.js",
+  "scripts": {
+    "test": "jest"
+  },
+  "author": "cdw37",
+  "license": "ISC",
+  "dependencies": {
+    "readline-sync": "^1.4.10"
+  }
+}

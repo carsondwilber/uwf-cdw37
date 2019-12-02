@@ -1,0 +1,23 @@
+extends layout
+
+block content
+  .row.banner
+    .col-12
+      h1= pageHeader.title
+        small &nbsp;#{pageHeader.strapline}
+  .row
+    .col-12.col-md-8
+
+      each soda in inventory
+        .card
+          .card-block
+            if soda.quantity
+              h4
+                a(href="/vend/" + soda.id)= soda.name
+              small #{soda.quantity} remaining
+              p.cost $#{soda.cost.toFixed(2)}
+            else
+              h4 #{soda.name} - SOLD OUT
+
+    .col-12.col-md-4
+      p.lead= sidebar

@@ -1,0 +1,16 @@
+extends layout
+
+block content
+    .container
+        if flash
+            .alert.alert-primary=flash.message
+
+        .card
+            .card-body
+                h5 All donations
+                if donations.length
+                    ul.list-group
+                    each item in donations
+                        li.list-group-item $#{item.amount} - #{item.message}
+                else
+                    p No donations have been made yet

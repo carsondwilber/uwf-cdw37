@@ -1,0 +1,10 @@
+extends layout
+
+block content
+    h3 Vend Receipt
+    h1 Thank you for buying a #{item}!
+    p Here's your receipt for $#{price}.
+    if caffeinated
+        p
+            strong Be careful not to drink too much caffeine!
+    a(href='/') Back to Home

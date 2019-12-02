@@ -1,0 +1,32 @@
+extends layout
+
+block content
+    if details.image
+        img(src=details.image.medium)
+    h1= details.name
+    if details.network
+        h3= 'Network: ' + details.network.name
+    p= 'Premiered ' + details.premiered
+    if details.genres
+        p
+            if details.genres.length > 1
+                span= 'Genres: '
+            else
+                span= 'Genre: '
+            - n = details.genres.length
+            while n > 1
+                span= details.genres[details.genres.length - n] + ', '
+                - n = n - 1
+            span= details.genres[details.genres.length - 1]
+    p!= details.summary
+    if details.externals
+        if details.externals.imdb
+            p
+                a(href='http://www.imdb.com/title/' + details.externals.imdb) See it on IMDb
+        else
+            p
+                em No IMDb assigned identifier.
+    else
+        p 
+            em No external assigned identifiers.
+    a(href='/') Return to Home

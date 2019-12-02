@@ -1,0 +1,25 @@
+extends layout
+
+block content
+  if flash
+    .alert=flash.message
+  #page-wrapper
+    #page
+      #content
+        .post.widepost
+          .entry
+            h2.title Shopping Cart
+            if cartItems
+              h3
+                a(href='/cart/checkout') Checkout
+                each item in cartItems
+                  .product.productLarge
+                    h3.productTitle #{item.title}
+                    a(href='#')
+                      img.item-thumbnail(src=item.image_url)
+                    p #{item.description}
+                    span.productPrice $#{item.cost}
+                    a(href='/cart/remove/' + item.id) Remove
+            else
+              p Your cart is currently empty
+

@@ -1,0 +1,52 @@
+extends layout
+
+block content
+  #page-wrapper
+    #page
+      #content
+        .post.widepost
+          .entry
+            h2.title Admin
+            form.cmxform(action='/admin/process' method='post')
+              fieldset
+                legend Create a New Item
+                ol
+                  li
+                    label(for='id')
+                      | ID
+                      em *
+                    input#id(name='id')
+                  li
+                    label(for='title')
+                      | Title
+                      em *
+                    input#title(name='title')
+                  li
+                    label(for='category')
+                      | Category
+                      em *
+                    select#category(name='category')
+                      option(value='') - Select One -
+                      option(value='clothing') Clothing
+                      option(value='toys') Toys
+                      option(value='babygear') Baby Gear
+                      option(value='furniture') Furniture
+                  li
+                    label(for='description') Description
+                    textarea#description(name='description')
+                  li
+                    label(for='image_url')
+                      | Image
+                      em *
+                    input#image_url(name='image_url')
+                  li
+                    label(for='cost')
+                      | Cost
+                      em *
+                    input#cost(name='cost')
+                  li
+                    label(for='commission') Commission %
+                    input#commission(name='commission')
+                  li
+                    label(for='submit') &nbsp;
+                    input#submit(type='submit' name='submit' value='Submit')

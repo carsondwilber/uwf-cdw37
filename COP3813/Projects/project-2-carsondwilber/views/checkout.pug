@@ -1,0 +1,28 @@
+extends layout
+
+block content
+  if flash
+    .alert=flash.message
+  #page-wrapper
+    #page
+      #content
+        .post.widepost
+          .entry
+            h2.title Checkout
+            form.cmxform(action='/cart/process' method='post')
+              fieldset
+                legend Shopping cart checkout
+                ol
+                  li
+                    label(for='name')
+                      | Name
+                      em *
+                    input#name(type='text' name='name')
+                  li
+                    label(for='email')
+                      | Email
+                      em *
+                    input#email(type='email' name='email')
+                  li
+                    label(for='submit') &nbsp;
+                    input#submit(type='submit' name='submit' value='Submit')

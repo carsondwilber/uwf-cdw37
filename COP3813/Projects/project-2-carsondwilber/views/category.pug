@@ -1,0 +1,22 @@
+extends layout
+
+block content
+  include ./mixins/cartlink.pug
+  #page-wrapper
+  #page
+    #content
+    .post.widepost
+      .entry
+      h2.title #{category}
+      if items
+        each item in items
+          .product.productLarge
+            h3.productTitle #{item.title}
+              img.item-thumbnail(src=item.image_url)
+
+            p=item.description
+            span.productPrice $#{item.cost}
+            +cartLink(cart, item.id)
+
+      else
+        p Sorry, there are no items available in this category

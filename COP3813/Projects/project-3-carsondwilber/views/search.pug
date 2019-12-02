@@ -1,0 +1,34 @@
+extends layout
+
+block content
+  h1 Search for Items
+    form(method='get' action='/search/items')
+      input(type='text' name='q' placeholder='Search terms', required=true)
+      br
+      input(type='text', name='zip' placeholder='ZIP Code')
+      br
+      input(type='text', name='city', placeholder='City (in place of ZIP)')
+      br
+      input(type='text', name='state', placeholder='State (in place of ZIP)')
+      br
+      input(type='text', name='radius', placeholder='Search radius (in miles)')
+      br
+      input(type='submit' value='Submit')
+
+  if results
+    table
+        each store in results
+            tr
+                td
+                    h2
+                        strong=store.name
+                    p #{store.address} (ZIP: #{store.zip})
+                    table(style='margin-left: 20%')
+                        each item in store.inventory
+                            tr
+                                td
+                                    h3 #{item.name} (#{item.quantity} available)
+                                    p=item.description
+                                    p Reported #{item.reportDate}
+  else 
+    h3 Begin a search above!

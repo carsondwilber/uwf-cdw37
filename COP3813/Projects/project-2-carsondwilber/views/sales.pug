@@ -1,0 +1,15 @@
+extends layout
+block content
+    h1(style='color: white; text-align: center; font-size: 32pt') Sales
+    br
+    #saleList
+        for sale in salesList
+            .sale
+                p= sale.dateSold
+                h2= sale.name
+                h3= sale.email
+                for item in sale.itemsSold
+                    .item
+                        p= item.title
+                        p= "$" + item.cost
+            br

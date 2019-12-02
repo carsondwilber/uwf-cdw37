@@ -1,0 +1,24 @@
+extends layout
+
+block content
+    .row
+        .col-md-8
+            if items.length > 0
+                each val in items
+                    .card
+                        h3
+                            a(href='/details/' + val.show.id)= val.show.name + (val.show.premiered ? ' (' + val.show.premiered.slice(0, 4) + ')' : '')
+            else
+                h3 No results found.
+        .col-md-4
+            for dec in [1950, 1960, 1970, 1980, 1990, 2000, 2010]
+                a(href='/search/' + terms + '?decade=' + dec)= dec + 's'
+                br
+            if filter != null
+                h3= 'Filter by decade: ' + filter
+                a(href='/reset/' + terms) Clear filter
+    .row
+        .col-md-8
+            input(type='text', name='terms', id='terms', placeholder='Enter search terms here', style='width: 100%')
+        .col-md-4
+            button(type='submit', onclick='window.location.href = "/search/" + $("#terms").val();') Search

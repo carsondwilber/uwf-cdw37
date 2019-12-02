@@ -1,0 +1,19 @@
+extends layout
+
+block content
+  h1 Read Posts
+  form(method='post', action='/')
+    input(name='user', type='text', placeholder='Your username')
+    textarea(name='content', width='100', height='6', placeholder='Your message')
+    button(type='submit') Submit
+  if posts == []
+    p There are no posts to display.
+  else
+    ul
+      each post in posts
+        li
+          h3= "Posted by: " + post.user
+        li
+          h2(style='font-weight: bold')= "Created " + post.created
+        li
+          p= "Message: " + post.content
